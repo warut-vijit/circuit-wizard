@@ -3,33 +3,52 @@ package main;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.GridLayout;
+import java.awt.MouseInfo;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
+import java.util.Hashtable;
 
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 
 public class Workspace extends JPanel {
 	private ArrayList<Gate> detached_gates;
 	private Gate selected;
-	private boolean addWireState;
+	private boolean addWireState; //t/f about whether wires being added
+	private boolean[] keyStates; //boolean state of keys by keycode
+	private Hashtable<String,Object> backlog;
+	private ArrayList<bool_in> ext_inputs;
+	private ArrayList<bool_out> ext_outputs;
 	public static void main(String[] args){
 		Workspace w = new Workspace();
-		w.addMouseListener(new MouseListener(){
-
-			@Override
+		w.setFocusable(true);
+		w.requestFocus();
+		Thread t = new Thread(){public void run(){try{w.update(w.getGraphics());Thread.sleep(10);}catch(InterruptedException ie){}}};
+		t.start();
+		w.addMouseListener(new MouseListener(){//Mouse listener
 			public void mouseClicked(MouseEvent arg0) {w.update(w.getGraphics());}
 			public void mouseEntered(MouseEvent arg0) {}
 			public void mouseExited(MouseEvent arg0) {}
 			public void mousePressed(MouseEvent arg0) {w.mouse_down_listener(arg0);w.update(w.getGraphics());}
 			public void mouseReleased(MouseEvent arg0) {w.mouse_up_listener(arg0);w.update(w.getGraphics());}
+		});
+		w.addKeyListener(new KeyListener() {//Keyboard shortcuts
+			public void keyTyped(KeyEvent e) {}
+			public void keyReleased(KeyEvent e) {w.processPress(e.getKeyCode(),false);}
+			public void keyPressed(KeyEvent e) {w.processPress(e.getKeyCode(),true);}
 		});
 		JFrame jf = new JFrame();
 		JMenuBar menubar = new JMenuBar();
@@ -38,6 +57,9 @@ public class Workspace extends JPanel {
 			JMenu edit = new JMenu("Edit");
 			menubar.add(edit);
 			JMenu verify = new JMenu("Verify");
+				JMenuItem verify_all = new JMenuItem("Full Circuit [Ctrl+F]");
+				verify_all.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){w.verifyFullCircuit();}});
+				verify.add(verify_all);
 			menubar.add(verify);
 			JMenu add = new JMenu("Gates");
 				JMenuItem AND = new JMenuItem("AND");
@@ -71,7 +93,7 @@ public class Workspace extends JPanel {
 				add.add(OUTPUT);
 			menubar.add(add);
 			JMenu othercomp = new JMenu("Other Elements");
-				JMenuItem SIGNAL = new JMenuItem("Signal");
+				JMenuItem SIGNAL = new JMenuItem("Signal [Ctrl+S]");
 				SIGNAL.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){w.addWireState=true;w.update(w.getGraphics());}});
 				othercomp.add(SIGNAL);
 			menubar.add(othercomp);
@@ -91,6 +113,10 @@ public class Workspace extends JPanel {
 		addWireState = false;
 		detached_gates = new ArrayList<Gate>();
 		selected = null;
+		keyStates = new boolean[100];
+		backlog = new Hashtable<String,Object>();
+		ext_inputs = new ArrayList<bool_in>();
+		ext_outputs = new ArrayList<bool_out>();
 	}
 	public void paint(Graphics g){
 		int block_size = 15;
@@ -189,6 +215,10 @@ public class Workspace extends JPanel {
 				int position = child.parents.indexOf(gate)==0 ? -7 : 7;
 				g.drawLine(gate.x+15, gate.y, child.x-15, child.y+position);
 			}
+			if(selected!=null && addWireState==true){
+				Point pos = MouseInfo.getPointerInfo().getLocation();
+				g.drawLine(selected.x+15, selected.y, (int)(pos.getX()-this.getLocationOnScreen().getX()), (int)(pos.getY()-this.getLocationOnScreen().getY()));
+			}
 		}
 	}
 	public void add_gate(String id){
@@ -204,20 +234,24 @@ public class Workspace extends JPanel {
 			case "NAND": detached_gates.add(new NANDgate(60,60));break;
 			case "NOR": detached_gates.add(new NORgate(60,60));break;
 			case "NXOR": detached_gates.add(new NXORgate(60,60));break;
-			case "INPUT": detached_gates.add(new bool_in(name,60,60));break;
-			case "OUTPUT": detached_gates.add(new bool_out(name,60,60));break;
+			case "INPUT": bool_in b = new bool_in(name,60,60);detached_gates.add(b);ext_inputs.add(b);break;
+			case "OUTPUT": bool_out bout = new bool_out(name,60,60);detached_gates.add(bout);ext_outputs.add(bout);break;
 		}
 		this.update(this.getGraphics());
 	}
-	public void mouse_down_listener(MouseEvent m){
-		for(Gate gate : detached_gates){
+	private void mouse_down_listener(MouseEvent m){
+		for(int i=0;i<detached_gates.size();i++){
+			Gate gate = detached_gates.get(detached_gates.size()-1-i);//Layering behavior
 			if(Math.abs(gate.x-m.getX())+Math.abs(gate.y-m.getY())<30){
 				selected = gate;//Gate to be moved in non wire add, gate for wire origin in wire add
 				break;
 			}
 		}
 	}
-	public void mouse_up_listener(MouseEvent m){
+	protected void updateWorkspace() {
+		this.update(this.getGraphics());
+	}
+	private void mouse_up_listener(MouseEvent m){
 		if(!addWireState){
 			if(selected!=null){
 				selected.x = m.getX()/15*15;
@@ -231,9 +265,55 @@ public class Workspace extends JPanel {
 					break;
 				}
 			}
+			selected = null;
+			addWireState = false;
 		}
 	}
+	private void processPress(int code, boolean state){//Event handler for key press
+		keyStates[code] = state; //Update key state list
+		//System.out.println(code);
+		if(keyStates[90] && keyStates[17]) System.out.println("Undo"); //Control+Z
+		else if(keyStates[83] && keyStates[17]) addWireState = true;
+		else if(keyStates[70] && keyStates[17]) verifyFullCircuit(); 
+	}
+	private void verifyFullCircuit(){
+		int numinputs = ext_inputs.size();
+		int numoutputs = ext_outputs.size();
+		Boolean[][] tt = new Boolean[(int)Math.pow(2, numinputs)][numinputs+numoutputs];
+		String[] titles = new String[numinputs+numoutputs];
+		for(int i = 0;i<numinputs;i++){
+			titles[i] = ext_inputs.get(i).name;
+		}
+		for(int i = 0;i<numoutputs;i++){
+			titles[i+numinputs] = ext_outputs.get(i).name;
+		}
+		for(int val=0;val<(int)Math.pow(2,numinputs);val++){
+			for(int i=0;i<numinputs;i++){
+				ext_inputs.get(i).state = (val>>i)%2==1 ? true : false;
+				tt[val][i] = ext_inputs.get(i).state;
+			}
+			for(bool_in i : ext_inputs){
+				i.update();
+			}
+			for(int j=0;j<numoutputs;j++){
+				bool_out i = ext_outputs.get(j);
+				tt[val][j+numinputs] = i.state;
+			}
+		}
+		JDialog jd = new JDialog();//Circuit output
+		JTable jt = new JTable(tt,titles);
+		JScrollPane jsp = new JScrollPane(jt);
+		jd.add(jsp);
+		jd.pack();
+		jd.setVisible(true);
+	}
 }
+
+
+
+
+
+
 class ANDgate extends Gate{
 	public ANDgate(int x, int y){
 		super(x, y);
