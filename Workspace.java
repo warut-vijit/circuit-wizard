@@ -32,12 +32,11 @@ public class Workspace extends JPanel {
 	private Hashtable<String,Object> backlog;
 	private ArrayList<bool_in> ext_inputs;
 	private ArrayList<bool_out> ext_outputs;
+	private Thread liveUpdate;
 	public static void main(String[] args){
 		Workspace w = new Workspace();
 		w.setFocusable(true);
 		w.requestFocus();
-		Thread t = new Thread(){public void run(){try{w.update(w.getGraphics());Thread.sleep(10);}catch(InterruptedException ie){}}};
-		t.start();
 		w.addMouseListener(new MouseListener(){//Mouse listener
 			public void mouseClicked(MouseEvent arg0) {w.update(w.getGraphics());}
 			public void mouseEntered(MouseEvent arg0) {}
@@ -50,6 +49,18 @@ public class Workspace extends JPanel {
 			public void keyReleased(KeyEvent e) {w.processPress(e.getKeyCode(),false);}
 			public void keyPressed(KeyEvent e) {w.processPress(e.getKeyCode(),true);}
 		});
+		w.liveUpdate = new Thread(){
+			public void run(){
+				while(true){
+					try {
+						w.repaint();
+						Thread.sleep(50);
+					}catch(NullPointerException npe) {}
+					catch(InterruptedException ie){}
+				}
+			}
+		};
+		w.liveUpdate.start();
 		JFrame jf = new JFrame();
 		JMenuBar menubar = new JMenuBar();
 			JMenu file = new JMenu("File");
@@ -110,6 +121,7 @@ public class Workspace extends JPanel {
 	}
 	public Workspace(){
 		super();
+		Workspace w = this;
 		addWireState = false;
 		detached_gates = new ArrayList<Gate>();
 		selected = null;
@@ -213,11 +225,13 @@ public class Workspace extends JPanel {
 			}
 			for(Gate child : gate.children){
 				int position = child.parents.indexOf(gate)==0 ? -7 : 7;
-				g.drawLine(gate.x+15, gate.y, child.x-15, child.y+position);
+				g.drawLine(gate.x+15, gate.y, gate.x+15, child.y+position);
+				g.drawLine(gate.x+15, child.y+position, child.x-15, child.y+position);
 			}
 			if(selected!=null && addWireState==true){
 				Point pos = MouseInfo.getPointerInfo().getLocation();
-				g.drawLine(selected.x+15, selected.y, (int)(pos.getX()-this.getLocationOnScreen().getX()), (int)(pos.getY()-this.getLocationOnScreen().getY()));
+				g.drawLine(selected.x+15, selected.y, selected.x+15, (int)(pos.getY()-this.getLocationOnScreen().getY()));
+				g.drawLine(selected.x+15, (int)(pos.getY()-this.getLocationOnScreen().getY()), (int)(pos.getX()-this.getLocationOnScreen().getX()), (int)(pos.getY()-this.getLocationOnScreen().getY()));
 			}
 		}
 	}
@@ -273,8 +287,8 @@ public class Workspace extends JPanel {
 		keyStates[code] = state; //Update key state list
 		//System.out.println(code);
 		if(keyStates[90] && keyStates[17]) System.out.println("Undo"); //Control+Z
-		else if(keyStates[83] && keyStates[17]) addWireState = true;
-		else if(keyStates[70] && keyStates[17]) verifyFullCircuit(); 
+		else if(keyStates[83] && keyStates[17]){keyStates[83]=false;keyStates[17]=false;addWireState = true;}
+		else if(keyStates[70] && keyStates[17]){keyStates[70]=false;keyStates[17]=false;verifyFullCircuit();} 
 	}
 	private void verifyFullCircuit(){
 		int numinputs = ext_inputs.size();
