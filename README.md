@@ -10,10 +10,18 @@ Specifications
   
   --Automatic snap-to-gate functionality for readability
   
+  --Speedy implementation of all basic logic gates
+  
   --Implemented in lightweight, fast Java Swing UI
   
+  --Circuit I/O display available
+  
 Plans
+  
+  --Diagnostic view with current visualization in test cases
   
   --Cryptographic verification using trapdoor function for easy submission
   
   --Ability to simulate circuit with infinite loop detection
+  
+  --Implementation of non-primitive circuit elements
