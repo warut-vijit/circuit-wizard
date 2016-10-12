@@ -16,6 +16,7 @@ import java.util.Hashtable;
 
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -69,8 +70,11 @@ public class Workspace extends JPanel {
 			menubar.add(edit);
 			JMenu verify = new JMenu("Verify");
 				JMenuItem verify_all = new JMenuItem("Full Circuit [Ctrl+F]");
-				verify_all.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){w.verifyFullCircuit();}});
+				verify_all.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){w.displayOutput();}});
 				verify.add(verify_all);
+				JMenuItem check_min = new JMenuItem("Check Minimal");
+				check_min.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){w.checkMinimal();}});
+				verify.add(check_min);
 			menubar.add(verify);
 			JMenu add = new JMenu("Gates");
 				JMenuItem AND = new JMenuItem("AND");
@@ -288,19 +292,12 @@ public class Workspace extends JPanel {
 		//System.out.println(code);
 		if(keyStates[90] && keyStates[17]) System.out.println("Undo"); //Control+Z
 		else if(keyStates[83] && keyStates[17]){keyStates[83]=false;keyStates[17]=false;addWireState = true;}
-		else if(keyStates[70] && keyStates[17]){keyStates[70]=false;keyStates[17]=false;verifyFullCircuit();} 
+		else if(keyStates[70] && keyStates[17]){keyStates[70]=false;keyStates[17]=false;displayOutput();} 
 	}
-	private void verifyFullCircuit(){
+	private Boolean[][] verifyFullCircuit(){
 		int numinputs = ext_inputs.size();
 		int numoutputs = ext_outputs.size();
 		Boolean[][] tt = new Boolean[(int)Math.pow(2, numinputs)][numinputs+numoutputs];
-		String[] titles = new String[numinputs+numoutputs];
-		for(int i = 0;i<numinputs;i++){
-			titles[i] = ext_inputs.get(i).name;
-		}
-		for(int i = 0;i<numoutputs;i++){
-			titles[i+numinputs] = ext_outputs.get(i).name;
-		}
 		for(int val=0;val<(int)Math.pow(2,numinputs);val++){
 			for(int i=0;i<numinputs;i++){
 				ext_inputs.get(i).state = (val>>i)%2==1 ? true : false;
@@ -314,12 +311,56 @@ public class Workspace extends JPanel {
 				tt[val][j+numinputs] = i.state;
 			}
 		}
+		
+		return tt;
+	}
+	private void displayOutput(){
+		int numinputs = ext_inputs.size();
+		int numoutputs = ext_outputs.size();
+		String[] titles = new String[numinputs+numoutputs];
+		for(int i = 0;i<numinputs;i++){
+			titles[i] = ext_inputs.get(i).name;
+		}
+		for(int i = 0;i<numoutputs;i++){
+			titles[i+numinputs] = ext_outputs.get(i).name;
+		}
+		Boolean[][] tt = verifyFullCircuit();
 		JDialog jd = new JDialog();//Circuit output
 		JTable jt = new JTable(tt,titles);
 		JScrollPane jsp = new JScrollPane(jt);
+		jsp.addMouseListener(new MouseListener(){
+			public void mouseClicked(MouseEvent arg0) {}
+			public void mouseEntered(MouseEvent e) {}
+			public void mouseExited(MouseEvent e) {}
+			public void mousePressed(MouseEvent e) {}
+			public void mouseReleased(MouseEvent e) {}
+		});
 		jd.add(jsp);
 		jd.pack();
 		jd.setVisible(true);
+	}
+	private void checkMinimal() {
+		Boolean[][] values = verifyFullCircuit();
+		for(int j=0;j<ext_outputs.size();j++){
+			int[] ogvalues = new int[values.length];
+			for(int i=0;i<values.length;i++){
+				ogvalues[i]=(values[i][ext_inputs.size()+j]) ? 1 : 0;
+			}
+			QCMIN q = new QCMIN(ext_inputs.size(),ogvalues);
+			ArrayList<int[]> minimized = q.printmin();
+			String iostring = "";
+			for(int[] i : minimized){
+				for(int input=0;input<i.length;input++){
+					if(i[input]==0){iostring+=ext_inputs.get(ext_inputs.size()-1-input).name()+"'";}
+					else if(i[input]==1){iostring+=ext_inputs.get(ext_inputs.size()-1-input).name();}
+				}
+				iostring += " + ";
+			}
+			JDialog jd = new JDialog();//Minimized Expression
+			jd.add(new JLabel(iostring.substring(0, iostring.length()-2)));
+			jd.pack();
+			jd.setVisible(true);
+		}
 	}
 }
 
