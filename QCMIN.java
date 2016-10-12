@@ -11,7 +11,9 @@ public class QCMIN {
 		implicants = new ArrayList<int[]>();
 		for(int i=0;i<(int)Math.pow(2, num_inputs);i++){
 			if(values[i] == 1){//If this combination of inputs is strictly a 1
-				String bin_rep = ("000"+Integer.toBinaryString(i)).substring(Integer.toBinaryString(i).length());
+				String padding = "";
+				for(int pad = 0;pad<num_inputs;pad++){padding = padding+"0";}
+				String bin_rep = (padding+Integer.toBinaryString(i)).substring(Integer.toBinaryString(i).length());
 				int[] temp = new int[num_inputs];
 				for(int j=0;j<temp.length;j++){
 					temp[j] = bin_rep.charAt(j) == 48 ? 0 : 1;
@@ -21,13 +23,7 @@ public class QCMIN {
 		}//Added all terms with 1 into list of implicants
 		boolean changed = true;
 		while(changed){
-			//System.out.println("New Iteration commenced");
 			changed = false;
-			/*System.out.println("");
-			System.out.println("Commencing print");
-			for(int[] term : implicants){
-				System.out.println(term[0]+", "+term[1]+", "+term[2]);
-			}*/
 			ArrayList<int[]> next_implicants = new ArrayList<int[]>();
 			for(int[] i: implicants){
 				boolean matched = false;
@@ -38,7 +34,10 @@ public class QCMIN {
 						if(i[k]!=j[k]){mismatch=k;num_mismatch++;}
 					}
 					if(num_mismatch==1){
-						int[] temp = new int[]{j[0],j[1],j[2]};
+						int[] temp = new int[j.length];
+						for(int k=0;k<j.length;k++){
+							temp[k] = j[k];
+						}
 						temp[mismatch] = -1;
 						next_implicants.add(temp);
 						matched = true;
@@ -71,9 +70,7 @@ public class QCMIN {
 			if(!changed){break;}
 		}
 	}
-	public void printmin(){
-		for(int[] term : implicants){
-			System.out.println(term[0]+", "+term[1]+", "+term[2]);
-		}
+	public ArrayList<int[]> printmin(){
+		return implicants;
 	}
 }
