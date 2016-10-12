@@ -16,6 +16,8 @@ Specifications
   
   --Circuit I/O display available
   
+  --Function to find the minimal Boolean expression given a test circuit
+  
 Plans
   
   --Diagnostic view with current visualization in test cases
