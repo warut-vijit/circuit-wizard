@@ -158,10 +158,19 @@ public class Workspace extends JPanel {
 				case "OUTPUT":
 					g.setColor(Color.BLACK);
 					int[] x2 = {gate.x+15,gate.x,gate.x-10,gate.x,gate.x+15};
-					int[] y2 = {gate.y+15,gate.y+15,gate.y,gate.y-15,gate.y-15};
+					int[] y2 = {gate.y+15,gate.y+15,gate.y-7,gate.y-15,gate.y-15};
 					g.drawPolygon(x2,y2,5);
 					g.drawLine(gate.x-10, gate.y, gate.x-15, gate.y);
 					g.drawString(gate.name, gate.x, gate.y);
+					break;
+				case "NOT":
+					g.setColor(Color.BLACK);
+					int[] x_coords6 = {gate.x-5,gate.x+10,gate.x-5};
+					int[] y_coords6 = {gate.y-15,gate.y,gate.y+15};
+					g.fillPolygon(x_coords6,y_coords6,3);
+					g.setColor(Color.BLACK);
+					g.drawLine(gate.x-15, gate.y-7, gate.x-5, gate.y-7);
+					g.drawLine(gate.x+10, gate.y, gate.x+15, gate.y);
 					break;
 				case "AND":
 					g.setColor(Color.BLUE);
